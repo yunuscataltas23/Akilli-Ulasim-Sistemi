@@ -25,4 +25,4 @@ Bu proje, şehir içi ulaşımı optimize etmek için yapay zeka ve veri analizi
 
 *(Not: Her hafta ekip üyeleri kendi yaptıkları çalışmaları bu dosyadaki ilgili haftanın altına ekleyecektir.)*
 
-ben ad
+
