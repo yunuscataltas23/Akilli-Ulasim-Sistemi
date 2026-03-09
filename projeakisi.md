@@ -24,3 +24,5 @@ Bu proje, şehir içi ulaşımı optimize etmek için yapay zeka ve veri analizi
 * **Ayham Nawaf Hammoud:** Geliştirme Ortamı Kurulumu ve IDE yapılandırması sağlandı.
 
 *(Not: Her hafta ekip üyeleri kendi yaptıkları çalışmaları bu dosyadaki ilgili haftanın altına ekleyecektir.)*
+
+ben ad
