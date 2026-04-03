@@ -254,3 +254,195 @@ Yetkilendirme seviyeleri nasıl olmalıdır?
 Sistemde hangi alarmlar ve uyarılar bulunmalıdır?
 9. Sonuç
 Yapılan gereksinim analizi sonucunda Akıllı Ulaşım Sistemi’nin, çok paydaşlı ve veri yoğun çalışan bir karar destek sistemi olduğu anlaşılmıştır. Projenin başarısı; doğru veri toplama, gerçek zamanlı analiz, etkili rota optimizasyonu ve kullanıcı dostu bilgilendirme mekanizmalarına bağlıdır. Belirlenen fonksiyonel ve fonksiyonel olmayan gereksinimler, sistem tasarımı ve geliştirme aşamalarına temel oluşturacaktır.
+
+
+Akıllı Ulaşım Sistemi İçin Algoritma Performans Analizi Raporu
+1. Giriş
+Akıllı Ulaşım Sistemi projesinde geliştirilen algoritmaların temel amacı, şehir içi ulaşımı daha düzenli, hızlı ve verimli hale getirmektir. Bu projede özellikle trafik yoğunluğunu tahmin etme, rota optimizasyonu, sefer saatlerini düzenleme ve yolcu bilgilendirme gibi alanlarda algoritmalardan yararlanılmaktadır.
+Bu raporda geliştirilen algoritmaların performansı analiz edilmiş, hangi ölçütlere göre değerlendirileceği açıklanmış ve sistemin daha iyi çalışabilmesi için iyileştirme önerileri sunulmuştur.
+2. Analizi Yapılan Algoritmalar
+Bu proje kapsamında değerlendirilebilecek başlıca algoritmalar şunlardır:
+2.1 Trafik Yoğunluğu Tahmin Algoritması
+Bu algoritma, geçmiş trafik verileri ve anlık verileri kullanarak belirli bölgelerde oluşabilecek trafik yoğunluğunu tahmin eder.
+2.2 Rota Optimizasyon Algoritması
+Bu algoritma, araçların gideceği güzergahları trafik durumuna, mesafeye ve yolcu yoğunluğuna göre en uygun şekilde belirler.
+2.3 Sefer Planlama Algoritması
+Bu algoritma, hangi saatlerde kaç araç çalışması gerektiğini hesaplayarak sefer sıklığını düzenler.
+2.4 Yolcu Bilgilendirme Algoritması
+Bu algoritma, araçların tahmini varış süresini hesaplayarak yolculara doğru bilgi verilmesini sağlar.
+3. Performans Analizinde Kullanılan Metrikler
+Algoritmaların başarısını değerlendirmek için bazı performans metrikleri kullanılır.
+3.1 Doğruluk Oranı
+Özellikle trafik tahmin algoritmasında önemlidir. Algoritmanın yaptığı tahminlerin gerçek verilerle ne kadar uyuştuğunu gösterir.
+Örnek:
+Eğer sistem yoğun trafik olacağını söylemişse ve gerçekten yoğun trafik yaşanmışsa, doğruluk oranı yüksek kabul edilir.
+3.2 Hata Oranı
+Algoritmanın ne kadar yanlış tahmin yaptığını gösterir. Hata oranı ne kadar düşükse sistem o kadar başarılıdır.
+3.3 Yanıt Süresi
+Sistemin veriyi işleyip sonuç üretme hızıdır. Özellikle anlık araç takibi ve yolcu bilgilendirme için çok önemlidir.
+3.4 Kaynak Kullanımı
+Algoritmanın çalışırken ne kadar işlemci, bellek ve ağ kaynağı kullandığını gösterir. Çok fazla kaynak tüketen sistemler maliyetli olabilir.
+3.5 Ölçeklenebilirlik
+Sistem kullanıcı sayısı arttığında veya veri miktarı büyüdüğünde performansını koruyabiliyor mu, buna bakılır.
+3.6 Tahmini Varış Süresi Başarımı
+Araçların durağa ulaşma süresini ne kadar doğru hesapladığı ölçülür. Yolcular için en önemli metriklerden biridir.
+4. Algoritmaların Performans Değerlendirmesi
+4.1 Trafik Yoğunluğu Tahmin Algoritması
+Bu algoritma, sistemin önemli parçalarından biridir çünkü rota düzenleme ve sefer planlama buna göre yapılmaktadır. Eğer trafik tahmini doğru olursa sistem daha etkili çalışır.
+Güçlü Yönleri
+Geçmiş veriler kullanıldığı için yoğun saatler daha kolay tahmin edilebilir.
+Trafik yoğunluğunu önceden tahmin ederek rota değişiklikleri yapılabilir.
+Yönetici paneline karar desteği sağlar.
+Zayıf Yönleri
+Sadece geçmiş verilere bağlı kalırsa ani kazaları veya beklenmedik yoğunlukları tahmin etmekte zorlanabilir.
+Veri eksikliği varsa doğruluk düşebilir.
+Gerçek zamanlı veri azsa sonuçlar güncelliğini kaybedebilir.
+Performans Değerlendirmesi
+Bu algoritmanın doğruluk oranı yüksek olduğunda sistem genel olarak daha verimli çalışacaktır. Ancak gerçek zamanlı veriyle desteklenmezse hata oranı artabilir.
+4.2 Rota Optimizasyon Algoritması
+Bu algoritma, araçların en uygun yoldan ilerlemesini sağlar. Burada amaç hem zamanı hem de yakıt tüketimini azaltmaktır.
+Güçlü Yönleri
+Trafik durumuna göre daha kısa veya daha hızlı rota seçebilir.
+Yakıt tasarrufu sağlayabilir.
+Yolculuk süresini azaltabilir.
+Zayıf Yönleri
+Çok fazla değişken olduğunda hesaplama süresi uzayabilir.
+Anlık trafik değişikliklerinde sürekli yeniden hesaplama gerekebilir.
+Yol durumu verileri eksikse en iyi sonuç alınamayabilir.
+Performans Değerlendirmesi
+Bu algoritma başarılı olduğunda hem araç yönetimi hem de yolcu memnuniyeti artar. Ancak büyük veriyle çalışırken işlem süresi dikkat edilmesi gereken önemli bir noktadır.
+4.3 Sefer Planlama Algoritması
+Bu algoritma, hangi saatlerde kaç aracın çalışacağını belirler. Özellikle sabah ve akşam yoğun saatlerde çok önemlidir.
+Güçlü Yönleri
+Yolcu yoğunluğuna göre ek sefer planlanabilir.
+Araçların boş ya da aşırı dolu gitmesi azaltılabilir.
+Kaynaklar daha verimli kullanılabilir.
+Zayıf Yönleri
+Talep yanlış tahmin edilirse gereksiz sefer veya yetersiz sefer sorunu yaşanabilir.
+Sadece sabit kurallarla çalışırsa esnekliği düşük olur.
+Özel günler, hava durumu ve etkinlikler hesaba katılmazsa hata artabilir.
+Performans Değerlendirmesi
+Sefer planlama algoritması, sistemin verimliliğini doğrudan etkiler. Doğru çalıştığında hem bekleme süresi azalır hem de araç kapasitesi daha iyi kullanılır.
+4.4 Yolcu Bilgilendirme Algoritması
+Bu algoritma, yolculara araçların tahmini geliş süresini ve gecikme bilgisini sunar.
+Güçlü Yönleri
+Yolcuların bekleme süresini daha iyi planlamasını sağlar.
+Kullanıcı memnuniyetini artırır.
+Mobil uygulama üzerinden anlık bilgi verilebilir.
+Zayıf Yönleri
+Konum verisi gecikmeli gelirse yanlış bilgi verebilir.
+Tahmini varış süresi sık sık değişirse kullanıcı güveni azalabilir.
+GPS hataları sonucu yanlış tahmin yapılabilir.
+Performans Değerlendirmesi
+Bu algoritmanın başarısı doğrudan kullanıcı deneyimini etkiler. Yolcuya doğru bilgi verilmesi sistemin güvenilirliğini artırır.
+5. Genel Performans Sonuçları
+Projede kullanılan algoritmalar genel olarak şehir içi ulaşımın iyileştirilmesine katkı sağlar. Özellikle trafik tahmini ve rota optimizasyonu doğru çalıştığında sistemin genel başarısı artmaktadır. Ancak performansın yüksek kalabilmesi için algoritmaların yalnızca teorik olarak değil, gerçek zamanlı verilerle de desteklenmesi gerekir.
+Genel olarak bakıldığında:
+Trafik tahmin algoritması sistemin karar verme başarısını etkiler.
+Rota optimizasyon algoritması zaman ve maliyet açısından önemlidir.
+Sefer planlama algoritması kaynak kullanımını düzenler.
+Yolcu bilgilendirme algoritması kullanıcı memnuniyetini artırır.
+6. İyileştirme Önerileri
+6.1 Gerçek Zamanlı Veri Kullanımını Artırma
+Algoritmalar yalnızca geçmiş verilere değil, anlık trafik, hava durumu ve araç konumu gibi verilere de bağlı çalışmalıdır. Böylece sonuçlar daha doğru olur.
+6.2 Makine Öğrenmesi Modellerini Güncelleme
+Makine öğrenmesi kullanılan algoritmalar belirli aralıklarla yeniden eğitilmelidir. Çünkü trafik yapısı zamanla değişebilir.
+6.3 Daha Fazla Veri Kaynağı Ekleme
+Sistem; GPS, kamera, sensör, yolcu kart geçiş verileri ve hava durumu gibi farklı kaynaklardan veri alırsa tahmin başarısı artar.
+6.4 Hesaplama Süresini Azaltma
+Rota optimizasyonunda çok karmaşık hesaplamalar varsa algoritmalar sadeleştirilebilir veya paralel işlem teknikleri kullanılabilir. Bu noktada Spark teknolojisi faydalı olabilir.
+6.5 Kullanıcı Geri Bildirimlerini Sisteme Dahil Etme
+Yolcuların ve sürücülerin verdiği geri bildirimler analiz edilerek sistemin tahmin kalitesi artırılabilir.
+6.6 Olağanüstü Durumlara Uyum Sağlama
+Kaza, yol kapanması, hava koşulları veya etkinlik gibi beklenmeyen durumlarda algoritmalar hızlı şekilde yeni karar verebilmelidir.
+6.7 Test ve Simülasyon Ortamı Oluşturma
+Algoritmalar gerçek sisteme alınmadan önce farklı trafik senaryolarında test edilmelidir. Böylece zayıf yönler önceden görülebilir.
+7. Sonuç
+Akıllı Ulaşım Sistemi içinde geliştirilen algoritmalar, toplu taşımanın daha akıllı ve verimli çalışmasını sağlayan en önemli bileşenlerdir. Yapılan performans analizine göre algoritmaların başarılı olabilmesi için doğruluk, hız, kaynak kullanımı ve ölçeklenebilirlik gibi ölçütlerin dikkate alınması gerekmektedir.
+Özellikle trafik tahmini, rota optimizasyonu, sefer planlama ve yolcu bilgilendirme algoritmaları sistemin temelini oluşturmaktadır. Bu algoritmaların gerçek zamanlı verilerle desteklenmesi, düzenli olarak güncellenmesi ve farklı senaryolarla test edilmesi sistem performansını önemli ölçüde artıracaktır.
+Sonuç olarak, iyi analiz edilmiş ve sürekli geliştirilen algoritmalar sayesinde şehir içi ulaşım daha hızlı, daha güvenli ve daha verimli hale getirilebilir.
+
+Toplu Taşıma Yönetim Sistemi (TTYS) Gereksinim Analizi
+1. Giriş
+Bu projede geliştirilecek olan Toplu Taşıma Yönetim Sistemi (TTYS), şehir içindeki ulaşımı daha düzenli ve verimli hale getirmeyi amaçlamaktadır. Sistem sayesinde otobüs, minibüs gibi toplu taşıma araçlarının rotaları, sefer saatleri ve konumları takip edilebilecektir.
+Ayrıca yapay zeka ve veri analizi kullanılarak trafik yoğunluğuna göre daha iyi kararlar alınması hedeflenmektedir. Böylece hem yolcuların bekleme süresi azalacak hem de ulaşım daha hızlı ve düzenli olacaktır.
+2. Sistem Amacı
+Bu sistemin amacı:
+Toplu taşıma araçlarının rotalarını daha verimli hale getirmek
+Sefer saatlerini trafik durumuna göre düzenlemek
+Araçların anlık konumlarını takip etmek
+Yolculara doğru ve anlık bilgi vermek
+Ulaşımı daha hızlı ve düzenli hale getirmek
+3. Sistem Kapsamı
+Bu sistemde şu özellikler olacaktır:
+Rota oluşturma ve düzenleme
+Sefer saatlerini belirleme
+Araçların GPS ile takip edilmesi
+Yolculara bilgi verilmesi (mobil uygulama vb.)
+Trafik durumuna göre öneriler sunulması
+Yönetici paneli ile sistemin kontrol edilmesi
+4. Kullanıcı Grupları
+Sistemde 3 ana kullanıcı grubu vardır:
+Yolcular
+Toplu taşıma kullanan kişilerdir. Araçların ne zaman geleceğini ve nerede olduğunu görmek isterler.
+Sürücüler
+Araç kullanan kişilerdir. Kendilerine verilen rota ve sefer bilgilerini takip ederler.
+Yöneticiler
+Sistemi yöneten kişilerdir. Rotaları, seferleri ve araçları kontrol ederler.
+5. Fonksiyonel Gereksinimler
+5.1 Rota Planlama
+Yeni rota oluşturulabilmeli
+Mevcut rotalar düzenlenebilmeli
+Durak ekleme ve çıkarma yapılabilmeli
+Trafiğe göre alternatif rota önerilebilmeli
+Rotalar harita üzerinde gösterilebilmeli
+5.2 Sefer Saatleri Yönetimi
+Her rota için sefer saatleri belirlenebilmeli
+Yoğun saatlere göre ek sefer konulabilmeli
+Tatil günleri için farklı plan yapılabilmeli
+Gecikme durumunda saatler güncellenebilmeli
+Sefer iptali sisteme işlenebilmeli
+5.3 Araç Takibi
+Araçlar GPS ile takip edilebilmeli
+Harita üzerinde konumları gösterilebilmeli
+Araçların rotadaki ilerleyişi görülebilmeli
+Gecikme veya rota dışına çıkma tespit edilebilmeli
+5.4 Yolcu Bilgilendirme
+Yolcular araçların kaç dakika sonra geleceğini görebilmeli
+Gecikme veya iptal bilgisi anlık verilmelidir
+Mobil uygulama üzerinden bildirim gönderilebilmeli
+En uygun rota önerilebilmeli
+5.5 Yönetici Paneli
+Tüm araçlar tek ekrandan izlenebilmeli
+Rota ve seferler düzenlenebilmeli
+Raporlar alınabilmeli
+Yeni araç ve sürücü eklenebilmeli
+5.6 Sürücü Modülü
+Sürücü sisteme giriş yapabilmeli
+Kendi rotasını ve saatlerini görebilmeli
+Sefer başlangıç ve bitişi bildirebilmeli
+Arıza veya gecikme durumu bildirebilmeli
+6. Fonksiyonel Olmayan Gereksinimler
+Sistem hızlı çalışmalı ve gecikme olmamalı
+Kullanıcı bilgileri güvenli olmalı
+Arayüz kolay ve anlaşılır olmalı
+Sistem büyütülebilir olmalı (yeni araç vs. eklenebilmeli)
+Sistem sürekli çalışır durumda olmalı
+7. Kullanıcı Hikayeleri
+Yolcu
+Bir yolcu olarak, aracın kaç dakika sonra geleceğini görmek istiyorum.
+Bir yolcu olarak, en kısa rotayı görmek istiyorum.
+Bir yolcu olarak, gecikme olursa bildirim almak istiyorum.
+Bir yolcu olarak, aracın konumunu haritada görmek istiyorum.
+Sürücü
+Bir sürücü olarak, bana verilen rotayı görmek istiyorum.
+Bir sürücü olarak, trafik durumuna göre alternatif rota almak istiyorum.
+Bir sürücü olarak, gecikme durumunu bildirmek istiyorum.
+Yönetici
+Bir yönetici olarak, tüm araçları tek ekranda görmek istiyorum.
+Bir yönetici olarak, sefer saatlerini düzenlemek istiyorum.
+Bir yönetici olarak, raporları incelemek istiyorum.
+Bir yönetici olarak, yeni araç ve sürücü eklemek istiyorum.
+8. Sonuç
+Bu sistem sayesinde şehir içi ulaşım daha düzenli ve verimli hale getirilebilir. Araçların takibi, rota planlama ve yolcu bilgilendirme gibi özellikler sayesinde hem yolcular hem de yöneticiler için büyük kolaylık sağlanır.
+Ayrıca kullanıcı hikayeleri sayesinde sistem, kullanıcı ihtiyaçlarına göre geliştirilmiş olur ve daha kullanışlı hale gelir.
