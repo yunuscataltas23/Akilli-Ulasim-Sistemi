@@ -6,12 +6,13 @@ def seyahat_suresi_hesapla(mesafe_km, hiz_km, trafik_durumu):
         sure = sure * 2
     return sure
 
+# DRY Prensibi: Tekrarlayan test kodlarını tek bir fonksiyona dönüştürdük
+def test_senaryosu_calistir(senaryo_no, durum, mesafe, hiz, trafik, beklenen_sonuc):
+    sonuc = seyahat_suresi_hesapla(mesafe, hiz, trafik)
+    print(f"Senaryo {senaryo_no} ({durum}): Beklenen={beklenen_sonuc}, Cikan={sonuc} -> GECTI")
+
 print("--- Test Raporu ---")
-sonuc1 = seyahat_suresi_hesapla(50, 50, "Normal")
-print("Senaryo 1 (Normal): Beklenen=1.0, Cikan=", sonuc1, "-> GECTI")
-
-sonuc2 = seyahat_suresi_hesapla(50, 50, "Yogun")
-print("Senaryo 2 (Yogun): Beklenen=2.0, Cikan=", sonuc2, "-> GECTI")
-
-sonuc3 = seyahat_suresi_hesapla(0, 50, "Normal")
-print("Senaryo 3 (Sifir): Beklenen=0.0, Cikan=", sonuc3, "-> GECTI")
+# Artık kod tekrarı yok, sadece fonksiyonu farklı verilerle çağırıyoruz!
+test_senaryosu_calistir(1, "Normal", 50, 50, "Normal", 1.0)
+test_senaryosu_calistir(2, "Yogun", 50, 50, "Yogun", 2.0)
+test_senaryosu_calistir(3, "Sifir", 0, 50, "Normal", 0.0)
