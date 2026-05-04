@@ -1,0 +1,544 @@
+openapi: 3.1.0
+info:
+  title: Akıllı Ulaşım Sistemi - Toplu Taşıma API
+  description: |
+    Bu API, Akıllı Ulaşım Sistemi için toplu taşıma yönetimini sağlar.
+    Mobil uygulama, trafik kontrol merkezi ve diğer sistemler arasında
+    veri alışverişini yönetir.
+  version: 1.0.0
+  contact:
+    name: Ayham Nawaf Hammoud
+    email: dev@akillilasim.com
+
+servers:
+  - url: https://api.akillilasim.com/v1
+    description: Production Server
+  - url: https://dev.akillilasim.com/v1
+    description: Development Server
+
+security:
+  - OAuth2: []
+
+# ─────────────────────────────────────────
+# FAZ 1: ARAÇLAR & ROTALAR
+# ─────────────────────────────────────────
+paths:
+
+  /araclar:
+    get:
+      summary: Tüm araçları listele
+      description: Sistemdeki tüm toplu taşıma araçlarını döndürür (otobüs, metro, tramvay)
+      tags:
+        - Araçlar
+      security:
+        - OAuth2: [read:araclar]
+      parameters:
+        - name: tur
+          in: query
+          description: Araç türüne göre filtrele
+          required: false
+          schema:
+            type: string
+            enum: [otobus, metro, tramvay]
+        - name: durum
+          in: query
+          description: Araç durumuna göre filtrele
+          required: false
+          schema:
+            type: string
+            enum: [aktif, pasif, bakimda]
+      responses:
+        '200':
+          description: Araç listesi başarıyla döndürüldü
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  basari:
+                    type: boolean
+                    example: true
+                  toplam:
+                    type: integer
+                    example: 42
+                  araclar:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Arac'
+        '401':
+          $ref: '#/components/responses/YetkisizErisim'
+
+  /araclar/{arac_id}:
+    get:
+      summary: Tek araç bilgisi
+      description: Belirli bir aracın anlık GPS konumu dahil tüm bilgilerini döndürür
+      tags:
+        - Araçlar
+      security:
+        - OAuth2: [read:araclar]
+      parameters:
+        - name: arac_id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "OTO-001"
+      responses:
+        '200':
+          description: Araç bilgisi döndürüldü
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AracDetay'
+        '404':
+          $ref: '#/components/responses/BulunamadiHatasi'
+
+  /araclar/{arac_id}/konum:
+    put:
+      summary: Araç konumunu güncelle (Canlı GPS)
+      description: Araçtan gelen anlık GPS verilerini sisteme gönderir
+      tags:
+        - Araçlar
+      security:
+        - OAuth2: [write:konum]
+      parameters:
+        - name: arac_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KonumGuncelleme'
+      responses:
+        '200':
+          description: Konum başarıyla güncellendi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  basari:
+                    type: boolean
+                    example: true
+                  mesaj:
+                    type: string
+                    example: "Konum güncellendi"
+                  zaman_damgasi:
+                    type: string
+                    format: date-time
+
+  /rotalar:
+    get:
+      summary: Tüm rotaları listele
+      tags:
+        - Rotalar
+      security:
+        - OAuth2: [read:rotalar]
+      responses:
+        '200':
+          description: Rota listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  basari:
+                    type: boolean
+                  rotalar:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Rota'
+
+  /rotalar/{rota_id}/duraklar:
+    get:
+      summary: Rotanın duraklarını getir
+      description: Belirli bir rotadaki tüm durakları sıralı olarak döndürür
+      tags:
+        - Rotalar
+      security:
+        - OAuth2: [read:rotalar]
+      parameters:
+        - name: rota_id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "ROTA-42"
+      responses:
+        '200':
+          description: Durak listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rota_id:
+                    type: string
+                  duraklar:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Durak'
+
+# ─────────────────────────────────────────
+# FAZ 2: BİLETLEME
+# ─────────────────────────────────────────
+
+  /biletler:
+    post:
+      summary: Yeni bilet oluştur
+      description: Yolcu için QR kodlu bilet oluşturur
+      tags:
+        - Biletleme
+      security:
+        - OAuth2: [write:bilet]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BiletOlusturmaIstegi'
+      responses:
+        '201':
+          description: Bilet başarıyla oluşturuldu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bilet'
+        '400':
+          $ref: '#/components/responses/GecersizIstek'
+
+  /biletler/{bilet_id}/dogrula:
+    post:
+      summary: Bilet doğrula (QR okuma)
+      description: Araçtaki QR okuyucu tarafından bilet geçerliliğini kontrol eder
+      tags:
+        - Biletleme
+      security:
+        - OAuth2: [write:bilet]
+      parameters:
+        - name: bilet_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Doğrulama sonucu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  gecerli:
+                    type: boolean
+                    example: true
+                  yolcu_adi:
+                    type: string
+                    example: "Ayham Nawaf"
+                  rota:
+                    type: string
+                    example: "ROTA-42"
+                  mesaj:
+                    type: string
+                    example: "Bilet geçerli"
+
+# ─────────────────────────────────────────
+# FAZ 3: ANALİTİK (AI Eğitimi için)
+# ─────────────────────────────────────────
+
+  /analitik/trafik-yogunlugu:
+    get:
+      summary: Trafik yoğunluğu verisi
+      description: AI modelinin eğitimi için geçmiş trafik yoğunluğu verilerini döndürür
+      tags:
+        - Analitik
+      security:
+        - OAuth2: [read:analitik]
+      parameters:
+        - name: baslangic_tarihi
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+            example: "2025-01-01"
+        - name: bitis_tarihi
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+            example: "2025-01-31"
+      responses:
+        '200':
+          description: Trafik verisi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrafikRaporu'
+
+  /analitik/gec-kalmalar:
+    get:
+      summary: Gecikme raporları
+      description: Araçların gecikme istatistiklerini döndürür
+      tags:
+        - Analitik
+      security:
+        - OAuth2: [read:analitik]
+      responses:
+        '200':
+          description: Gecikme raporu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GecikmeRaporu'
+
+# ─────────────────────────────────────────
+# SCHEMAS (Veri Modelleri)
+# ─────────────────────────────────────────
+components:
+  schemas:
+
+    Arac:
+      type: object
+      properties:
+        arac_id:
+          type: string
+          example: "OTO-001"
+        tur:
+          type: string
+          enum: [otobus, metro, tramvay]
+          example: "otobus"
+        plaka:
+          type: string
+          example: "23 AKL 001"
+        kapasite:
+          type: integer
+          example: 80
+        durum:
+          type: string
+          enum: [aktif, pasif, bakimda]
+          example: "aktif"
+
+    AracDetay:
+      allOf:
+        - $ref: '#/components/schemas/Arac'
+        - type: object
+          properties:
+            guncel_konum:
+              $ref: '#/components/schemas/Konum'
+            mevcut_yolcu_sayisi:
+              type: integer
+              example: 34
+            atanmis_rota:
+              type: string
+              example: "ROTA-42"
+
+    Konum:
+      type: object
+      required: [enlem, boylam]
+      properties:
+        enlem:
+          type: number
+          format: float
+          example: 38.6748
+        boylam:
+          type: number
+          format: float
+          example: 39.2225
+        hiz_kmh:
+          type: number
+          example: 45.5
+        zaman_damgasi:
+          type: string
+          format: date-time
+
+    KonumGuncelleme:
+      type: object
+      required: [enlem, boylam]
+      properties:
+        enlem:
+          type: number
+          example: 38.6748
+        boylam:
+          type: number
+          example: 39.2225
+        hiz_kmh:
+          type: number
+          example: 45.5
+
+    Rota:
+      type: object
+      properties:
+        rota_id:
+          type: string
+          example: "ROTA-42"
+        rota_adi:
+          type: string
+          example: "Merkez - Havalimanı"
+        tur:
+          type: string
+          enum: [otobus, metro, tramvay]
+        toplam_durak:
+          type: integer
+          example: 15
+        tahmini_sure_dk:
+          type: integer
+          example: 40
+
+    Durak:
+      type: object
+      properties:
+        durak_id:
+          type: string
+          example: "DRK-007"
+        durak_adi:
+          type: string
+          example: "Merkez Meydanı"
+        sira:
+          type: integer
+          example: 1
+        konum:
+          $ref: '#/components/schemas/Konum'
+
+    BiletOlusturmaIstegi:
+      type: object
+      required: [yolcu_id, rota_id]
+      properties:
+        yolcu_id:
+          type: string
+          example: "YLC-12345"
+        rota_id:
+          type: string
+          example: "ROTA-42"
+        binis_duragi:
+          type: string
+          example: "DRK-001"
+        inis_duragi:
+          type: string
+          example: "DRK-010"
+
+    Bilet:
+      type: object
+      properties:
+        bilet_id:
+          type: string
+          example: "BLT-9999"
+        qr_kod:
+          type: string
+          description: Base64 encoded QR code image
+        yolcu_id:
+          type: string
+        rota_id:
+          type: string
+        gecerlilik_suresi:
+          type: string
+          format: date-time
+        ucret_tl:
+          type: number
+          example: 15.50
+
+    TrafikRaporu:
+      type: object
+      properties:
+        donem:
+          type: string
+          example: "2025-01"
+        ortalama_yogunluk:
+          type: number
+          example: 72.3
+        en_yogun_saat:
+          type: string
+          example: "08:30"
+        veri_noktalari:
+          type: array
+          items:
+            type: object
+            properties:
+              saat:
+                type: string
+              yogunluk_yuzdesi:
+                type: number
+
+    GecikmeRaporu:
+      type: object
+      properties:
+        toplam_sefer:
+          type: integer
+          example: 1250
+        gec_kalan_sefer:
+          type: integer
+          example: 87
+        gecikme_yuzdesi:
+          type: number
+          example: 6.96
+        ortalama_gecikme_dk:
+          type: number
+          example: 4.2
+
+  # ─────────────────────────────────────────
+  # AUTH: OAuth 2.0
+  # ─────────────────────────────────────────
+  securitySchemes:
+    OAuth2:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://auth.akillilasim.com/oauth/token
+          scopes:
+            read:araclar: Araç verilerini okuma
+            write:konum: GPS konumu güncelleme
+            read:rotalar: Rota verilerini okuma
+            write:bilet: Bilet oluşturma ve doğrulama
+            read:analitik: Analitik verileri okuma
+
+  # ─────────────────────────────────────────
+  # ORTAK HATA CEVAPLARI
+  # ─────────────────────────────────────────
+  responses:
+    YetkisizErisim:
+      description: Token geçersiz veya eksik
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              hata:
+                type: string
+                example: "Yetkisiz erişim"
+              kod:
+                type: integer
+                example: 401
+
+    BulunamadiHatasi:
+      description: Kaynak bulunamadı
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              hata:
+                type: string
+                example: "Araç bulunamadı"
+              kod:
+                type: integer
+                example: 404
+
+    GecersizIstek:
+      description: Geçersiz istek verisi
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              hata:
+                type: string
+                example: "Geçersiz istek"
+              hatalar:
+                type: array
+                items:
+                  type: string
