@@ -686,3 +686,12 @@ flowchart LR
 Bu hafta yapılan çalışma sonucunda Akıllı Ulaşım Sistemi için Kafka tabanlı entegrasyon mimarisi tasarlanmıştır. Veri kaynakları, Kafka topic’leri, producer ve consumer bileşenleri belirlenmiştir. Ayrıca verinin nasıl filtreleneceği, toplanacağı, analiz edileceği ve farklı modüllere nasıl aktarılacağı açıklanmıştır.
 
 Bunun yanında, sistem performansını artırmak için paralel işleme kullanılacak alanlar belirlenmiştir. Kafka consumer group yapısı, Spark partition mantığı ve Java thread kullanımı sayesinde sistemin daha hızlı, ölçeklenebilir ve gerçek zamanlı çalışması hedeflenmektedir.
+
+
+### Paralel İşleme Uygulaması
+
+Projede paralel işleme, rota optimizasyonu işlemlerinde kullanılacak şekilde planlanmıştır. Birden fazla toplu taşıma hattının rota hesaplaması tek tek sırayla yapılmak yerine Java `ExecutorService` yapısı ile aynı anda çalıştırılmıştır.
+
+Bu sayede özellikle yoğun saatlerde birden fazla hattın trafik durumuna göre yeniden hesaplanması daha kısa sürede yapılabilir. Her rota optimizasyon görevi ayrı bir thread üzerinde çalıştırılarak işlem süresinin azaltılması hedeflenmiştir.
+
+Bu yapı ileride trafik verisi analizi, sefer planlama ve mobil bildirim gönderimi gibi alanlarda da kullanılabilir.
