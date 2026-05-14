@@ -446,3 +446,243 @@ Bir yönetici olarak, yeni araç ve sürücü eklemek istiyorum.
 8. Sonuç
 Bu sistem sayesinde şehir içi ulaşım daha düzenli ve verimli hale getirilebilir. Araçların takibi, rota planlama ve yolcu bilgilendirme gibi özellikler sayesinde hem yolcular hem de yöneticiler için büyük kolaylık sağlanır.
 Ayrıca kullanıcı hikayeleri sayesinde sistem, kullanıcı ihtiyaçlarına göre geliştirilmiş olur ve daha kullanışlı hale gelir.
+
+
+ Kafka Entegrasyon Mimarisi ve Paralel İşleme Planı  
+**Sorumlu:** Uğur Metin Karabulut
+
+### 1. Amaç
+
+Bu hafta, Akıllı Ulaşım Sistemi projesinde trafik verilerinin Kafka üzerinden nasıl toplanacağı, işleneceği ve farklı sistem bileşenlerine nasıl dağıtılacağı tasarlanmıştır. Amaç; sensör, GPS, trafik yoğunluğu, yolcu yoğunluğu ve olay verilerini gerçek zamanlı olarak işleyip analiz, rota optimizasyonu, toplu taşıma yönetimi ve mobil bilgilendirme modüllerine aktarmaktır.
+
+Kafka mimarisi sayesinde sistemin farklı bileşenleri birbirinden bağımsız çalışabilecek, veri akışı daha ölçeklenebilir ve yönetilebilir hale gelecektir.
+
+---
+
+### 2. Kafka Entegrasyon Mimarisi
+
+Sistemde farklı veri kaynaklarından gelen bilgiler Kafka üreticileri tarafından Kafka konularına gönderilecektir. Daha sonra bu veriler ilgili tüketiciler tarafından alınarak analiz, tahmin, rota optimizasyonu ve kullanıcı bilgilendirme işlemlerinde kullanılacaktır.
+
+#### Veri Kaynakları
+
+- Trafik sensörleri  
+- Toplu taşıma araçlarının GPS verileri  
+- Durak ve yolcu yoğunluğu verileri  
+- Kaza, yol çalışması veya olağanüstü durum verileri  
+- Mobil uygulama kullanıcı talepleri  
+
+---
+
+### 3. Kafka Producers
+
+Kafka üreticileri, farklı kaynaklardan gelen verileri Kafka’ya gönderen bileşenlerdir.
+
+| Producer | Görevi |
+|---|---|
+| `traffic-sensor-producer` | Yol ve kavşaklardaki trafik yoğunluğu, hız ve araç sayısı verilerini gönderir. |
+| `vehicle-gps-producer` | Otobüs ve diğer toplu taşıma araçlarının konum bilgilerini gönderir. |
+| `passenger-density-producer` | Durak veya araç içi yolcu yoğunluğu verilerini gönderir. |
+| `incident-producer` | Kaza, yol kapanması, arıza veya acil durum bilgilerini gönderir. |
+| `mobile-request-producer` | Mobil uygulamadan gelen rota ve varış süresi sorgularını sisteme iletir. |
+
+---
+
+### 4. Kafka Topics
+
+Kafka konuları, sistemdeki veri akışını düzenlemek için kullanılacaktır.
+
+| Topic | Açıklama |
+|---|---|
+| `raw-traffic-data` | Sensörlerden gelen ham trafik verileri |
+| `vehicle-location-data` | Araçların anlık GPS konumları |
+| `passenger-density-data` | Yolcu yoğunluğu ve durak kalabalığı verileri |
+| `incident-events` | Kaza, yol çalışması, arıza ve acil durum verileri |
+| `processed-traffic-data` | Filtrelenmiş ve temizlenmiş trafik verileri |
+| `traffic-prediction-results` | Makine öğrenmesi modelinden çıkan trafik tahminleri |
+| `route-optimization-results` | Rota optimizasyon algoritmasının ürettiği öneriler |
+| `public-transport-updates` | Sefer, gecikme ve rota güncelleme bilgileri |
+| `mobile-notifications` | Kullanıcılara gönderilecek mobil bildirimler |
+| `dead-letter-topic` | Hatalı veya işlenemeyen veriler |
+
+---
+
+### 5. Kafka Consumers
+
+Kafka tüketicileri, Kafka konularından verileri alarak ilgili modüllerde işleyen bileşenlerdir.
+
+| Consumer | Tükettiği Topic | Görevi |
+|---|---|---|
+| `traffic-analysis-consumer` | `raw-traffic-data` | Trafik verilerini temizler, filtreler ve analiz eder. |
+| `spark-streaming-consumer` | `processed-traffic-data` | Spark ile anlık veri işleme ve toplama işlemleri yapar. |
+| `ml-prediction-consumer` | `processed-traffic-data` | Trafik yoğunluğu tahmini üretir. |
+| `route-optimization-consumer` | `traffic-prediction-results`, `incident-events` | Alternatif rota ve sefer önerileri oluşturur. |
+| `neo4j-writer-consumer` | `route-optimization-results` | Yol, durak ve güzergâh ilişkilerini Neo4j veritabanına yazar. |
+| `mobile-notification-consumer` | `public-transport-updates` | Yolculara gecikme, rota değişikliği ve tahmini varış bildirimi gönderir. |
+| `admin-dashboard-consumer` | `processed-traffic-data`, `route-optimization-results` | Yönetici paneline anlık durum bilgisi sağlar. |
+
+---
+
+### 6. Veri Serileştirme Formatı
+
+Bu projede veri serileştirme için **Avro** formatı tercih edilmiştir. Avro’nun seçilme nedenleri şunlardır:
+
+- Büyük veri ve Kafka sistemleriyle uyumludur.
+- Şema yapısı sayesinde veri formatı daha kontrollü olur.
+- Farklı servisler arasında veri tutarlılığını artırır.
+- JSON’a göre daha verimli ve performanslıdır.
+
+Demo veya küçük test aşamalarında okunabilirlik açısından JSON da kullanılabilir. Ancak gerçek sistem mimarisinde Avro daha uygun görülmektedir.
+
+#### Örnek Trafik Verisi Şeması
+
+```json
+{
+  "sensorId": "S-102",
+  "roadSegmentId": "R-45",
+  "timestamp": "2026-05-14T10:30:00",
+  "averageSpeed": 32.5,
+  "vehicleCount": 148,
+  "congestionLevel": "HIGH"
+}
+```
+
+---
+
+### 7. Veri Akışı Stratejisi
+
+Veri akışı aşağıdaki adımlarla ilerleyecektir:
+
+1. Trafik sensörleri, GPS cihazları ve mobil uygulama verileri üreticiler tarafından Kafka’ya gönderilir.  
+2. Ham veriler ilgili Kafka topic’lerinde tutulur.  
+3. Spark Streaming tüketicisi verileri gerçek zamanlı olarak işler.  
+4. Eksik, hatalı veya tutarsız veriler filtrelenir.  
+5. Trafik yoğunluğu belirli zaman aralıklarına göre toplanır.  
+6. Makine öğrenmesi modülü trafik yoğunluğu tahmini üretir.  
+7. Rota optimizasyon modülü, tahmin sonuçlarına göre alternatif güzergâhlar belirler.  
+8. Neo4j veritabanı yol, durak ve güzergâh ilişkilerini saklar.  
+9. Mobil uygulama ve yönetici paneli güncel bilgileri kullanıcıya sunar.
+
+---
+
+### 8. Filtreleme ve Toplama İşlemleri
+
+Kafka’dan gelen veriler işlenmeden önce bazı kontrollerden geçirilecektir.
+
+#### Filtreleme
+
+- Eksik konum verileri elenir.  
+- Negatif hız, hatalı koordinat veya boş sensör verileri filtrelenir.  
+- Aynı zaman aralığında tekrar gelen veriler temizlenir.  
+- Geçersiz araç veya durak kimlikleri kontrol edilir.  
+
+#### Toplama
+
+- Belirli yol segmentleri için ortalama hız hesaplanır.  
+- 1 dakikalık ve 5 dakikalık zaman pencerelerinde araç yoğunluğu hesaplanır.  
+- Belirli duraklarda yolcu yoğunluğu ortalaması çıkarılır.  
+- Gecikme süreleri hat bazında gruplanır.  
+
+---
+
+### 9. Performans ve Ölçeklenebilirlik
+
+Kafka’nın performanslı çalışması için şu kararlar alınmıştır:
+
+- Topic’ler birden fazla partition ile oluşturulacaktır.
+- Partition anahtarı olarak `roadSegmentId`, `routeId` veya `vehicleId` kullanılacaktır.
+- Aynı işlemi yapan consumer’lar consumer group yapısı ile paralel çalışacaktır.
+- Büyük veri işlemleri Spark ile dağıtık şekilde yapılacaktır.
+- Hatalı veriler doğrudan silinmeyecek, `dead-letter-topic` içine gönderilecektir.
+- Gerçek sistemde veri kaybını önlemek için replication factor kullanılacaktır.
+- Test ortamında daha küçük partition ve replication ayarları tercih edilebilir.
+
+---
+
+### 10. Paralel İşleme Kullanımı
+
+Projede performansı artırmak için paralel işleme kullanılacaktır. Özellikle trafik verilerinin aynı anda farklı bölgelerden gelmesi nedeniyle tüm verilerin tek tek sırayla işlenmesi sistemde gecikmeye neden olabilir.
+
+Bu nedenle paralel işlem şu alanlarda kullanılacaktır:
+
+#### 1. Trafik Verisi İşleme
+
+Farklı yol segmentlerinden gelen veriler aynı anda işlenebilir. Örneğin her yol segmenti veya bölge ayrı thread tarafından analiz edilebilir.
+
+#### 2. Rota Optimizasyonu
+
+Birden fazla otobüs hattı için rota hesaplamaları paralel yapılabilir. Böylece tüm hatlar sırayla beklemek yerine aynı anda hesaplanır.
+
+#### 3. Sefer Planlama
+
+Yoğun saatlerde farklı hatların sefer sıklığı ayrı görevler halinde paralel çalıştırılabilir.
+
+#### 4. Mobil Bildirim Gönderimi
+
+Gecikme veya rota değişikliği bildirimleri kullanıcılara toplu şekilde ve paralel olarak gönderilebilir.
+
+Java tarafında `ExecutorService` veya `ThreadPool` yapısı kullanılabilir. Spark tarafında ise veriler partition’lara ayrılarak dağıtık şekilde işlenebilir.
+
+---
+
+### 11. Örnek Paralel İşleme Mantığı
+
+```java
+ExecutorService executor = Executors.newFixedThreadPool(4);
+
+for (Route route : routes) {
+    executor.submit(() -> {
+        optimizeRoute(route);
+    });
+}
+
+executor.shutdown();
+```
+
+Bu örnekte her rota için optimizasyon işlemi ayrı bir görev olarak çalıştırılır. Böylece sistem birden fazla rotayı aynı anda hesaplayabilir ve işlem süresi azalır.
+
+---
+
+### 12. Entegrasyon Diyagramı
+
+Aşağıdaki diyagram, Kafka tabanlı veri akışını göstermektedir:
+
+```mermaid
+flowchart LR
+    A[Trafik Sensörleri] --> P1[traffic-sensor-producer]
+    B[Araç GPS Verileri] --> P2[vehicle-gps-producer]
+    C[Yolcu Yoğunluğu] --> P3[passenger-density-producer]
+    D[Kaza / Yol Çalışması] --> P4[incident-producer]
+    E[Mobil Uygulama Talepleri] --> P5[mobile-request-producer]
+
+    P1 --> K1[raw-traffic-data]
+    P2 --> K2[vehicle-location-data]
+    P3 --> K3[passenger-density-data]
+    P4 --> K4[incident-events]
+    P5 --> K5[mobile-requests]
+
+    K1 --> S[Spark Streaming İşleme]
+    K2 --> S
+    K3 --> S
+
+    S --> K6[processed-traffic-data]
+    K6 --> ML[Machine Learning Tahmin Modülü]
+    ML --> K7[traffic-prediction-results]
+
+    K7 --> R[Rota Optimizasyon Modülü]
+    K4 --> R
+    R --> K8[route-optimization-results]
+
+    K8 --> N[Neo4j Yol ve Rota Grafı]
+    K8 --> T[Toplu Taşıma Yönetim Sistemi]
+    T --> K9[public-transport-updates]
+    K9 --> M[Mobil Bildirim Servisi]
+    M --> U[Yolcular]
+```
+
+---
+
+### 13. Sonuç
+
+Bu hafta yapılan çalışma sonucunda Akıllı Ulaşım Sistemi için Kafka tabanlı entegrasyon mimarisi tasarlanmıştır. Veri kaynakları, Kafka topic’leri, producer ve consumer bileşenleri belirlenmiştir. Ayrıca verinin nasıl filtreleneceği, toplanacağı, analiz edileceği ve farklı modüllere nasıl aktarılacağı açıklanmıştır.
+
+Bunun yanında, sistem performansını artırmak için paralel işleme kullanılacak alanlar belirlenmiştir. Kafka consumer group yapısı, Spark partition mantığı ve Java thread kullanımı sayesinde sistemin daha hızlı, ölçeklenebilir ve gerçek zamanlı çalışması hedeflenmektedir.
