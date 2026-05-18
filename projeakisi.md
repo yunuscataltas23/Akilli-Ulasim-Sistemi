@@ -254,3 +254,185 @@ Yetkilendirme seviyeleri nasıl olmalıdır?
 Sistemde hangi alarmlar ve uyarılar bulunmalıdır?
 9. Sonuç
 Yapılan gereksinim analizi sonucunda Akıllı Ulaşım Sistemi’nin, çok paydaşlı ve veri yoğun çalışan bir karar destek sistemi olduğu anlaşılmıştır. Projenin başarısı; doğru veri toplama, gerçek zamanlı analiz, etkili rota optimizasyonu ve kullanıcı dostu bilgilendirme mekanizmalarına bağlıdır. Belirlenen fonksiyonel ve fonksiyonel olmayan gereksinimler, sistem tasarımı ve geliştirme aşamalarına temel oluşturacaktır.
+
+
+Proje Mimari ve Teknoloji Seçimi
+Bu çapta bir sistemin başarısı, verinin ne kadar hızlı işlendiğine ve ilişkisel verilerin (yollar, duraklar, rotalar) ne kadar verimli sorgulandığına bağlıdır.
+1. Veri Akışı ve Mesajlaşma (Data Ingestion)
+•	Seçim: Apache Kafka
+•	Gerekçe: Trafik verileri (sensörler, GPS koordinatları) sürekli akan (streaming) verilerdir. Kafka, saniyede milyonlarca veriyi düşük gecikme süresiyle kabul edebilir ve diğer modüllere (Spark gibi) güvenli bir şekilde aktarabilir.
+2. Büyük Veri İşleme (Data Processing)
+•	Seçim: Apache Spark (Spark Streaming & GraphX)
+•	Gerekçe:
+o	Spark Streaming: Kafka'dan gelen canlı trafik verilerini gerçek zamanlı analiz etmek için idealdir.
+o	GraphX: Toplu taşıma ağları doğası gereği birer graf yapısıdır (duraklar node, yollar edge). Spark GraphX, bu yapılar üzerinde paralel hesaplama yapmanı sağlar.
+3. Veritabanı Yönetimi
+•	Seçim: Neo4j (Graph Database)
+•	Gerekçe: İlişkisel veritabanları (SQL) karmaşık rota hesaplamalarında çok yavaş kalır. Neo4j, "en kısa yol" (Dijkstra) ve "alternatif rota" analizlerini milisaniyeler içinde gerçekleştirebilir. Şehrin ulaşım ağını bir ağ (network) olarak modellemek için en mantıklı seçenektir.
+•	Tamamlayıcı Seçim: PostgreSQL (PostGIS eklentisi ile)
+•	Gerekçe: Kullanıcı bilgileri ve statik durak verileri için SQL güvenilirliği gerekir. PostGIS eklentisi ise coğrafi koordinat sorgularında (yakınındaki durakları bulma gibi) üstün performans sergiler.
+4. Yapay Zeka ve Makine Öğrenmesi
+•	Seçim: Python (Scikit-learn, TensorFlow veya PyTorch)
+•	Gerekçe: Her ne kadar ana dil Java olsa da, trafik tahmini ve optimizasyon modelleri için Python kütüphaneleri çok daha zengindir. Java ile yazılmış ana sisteme PySpark üzerinden veya mikroservis mimarisiyle entegre edilebilir.
+•	Algoritmalar:
+o	LSTM (RNN): Zaman serisi olan trafik yoğunluğu tahmini için.
+o	Reinforcement Learning (Pekiştirmeli Öğrenme): Rota optimizasyonu ve trafik ışığı senkronizasyonu için.
+5. Backend ve Uygulama Katmanı
+•	Seçim: Java (Spring Boot)
+•	Gerekçe: Kurumsal düzeyde güvenilirlik, yüksek performans ve geniş kütüphane desteği. Kafka ve Spark ile yerel uyumluluğu mükemmeldir.
+________________________________________
+📊 Teknoloji Matrisi Özeti
+Katman	Araç / Teknoloji	Görev
+Dil	Java / Python	İş mantığı ve ML modelleri
+Stream	Apache Kafka	Anlık veri aktarımı
+İşleme	Apache Spark	Büyük veri analitiği
+Graf DB	Neo4j	Rota ve ağ optimizasyonu
+Mobil	Flutter / React Native	Kullanıcı bilgilendirme arayüzü
+
+Akıllı Ulaşım Sistemi – Kafka ve Spark Entegrasyonu Mimari Tasarımı
+
+Akıllı Ulaşım Sistemi – Kafka ve Spark Entegrasyonu Mimari Tasarımı
+
+1. Amaç
+Bu mimarinin amacı, şehir içi trafik verilerini gerçek zamanlı olarak işleyerek:
+- Trafik yoğunluğunu analiz etmek
+- Trafik tahmini yapmak
+- Toplu taşıma rotalarını optimize etmek
+- Kullanıcılara anlık bildirim göndermek
+
+işlevlerini yüksek performanslı ve ölçeklenebilir bir yapı ile gerçekleştirmektir.
+
+2. Genel Sistem Mimarisi
+[Trafik Sensörleri / GPS / Mobil Uygulamalar]
+                    │
+                    ▼
+             Apache Kafka
+        (Gerçek Zamanlı Veri Akışı)
+                    │
+        ┌───────────┴───────────┐
+        ▼                       ▼
+ Spark Streaming          Kafka Storage
+ (Gerçek Zamanlı İşleme)     (Buffer)
+        │
+        ▼
+ Makine Öğrenmesi Modülü
+        │
+        ▼
+ Neo4j Graph Database
+        │
+        ▼
+ Rota Optimizasyonu
+        │
+        ▼
+ Mobil Uygulama / Yönetim Paneli
+
+3. Kafka Mimarisi
+Apache Kafka:
+- Trafik verilerini toplar
+- Gerçek zamanlı veri akışı sağlar
+- Sistem bileşenleri arasında veri iletişimini yönetir
+- Yüksek hacimli veriyi kayıpsız işler
+
+4. Kafka Topic Yapısı
+Önerilen Topic’ler:
+- traffic-sensor-data
+- gps-location-stream
+- public-transport-status
+- traffic-events
+- route-optimization-results
+- user-notifications
+
+5. Spark Streaming Mimarisi
+Apache Spark:
+- Kafka’dan gelen verileri gerçek zamanlı işler
+- Trafik yoğunluğu analizi yapar
+- ML modellerini çalıştırır
+- Rota optimizasyonu üretir
+
+Spark Structured Streaming örneği:
+
+Dataset<Row> df = spark
+    .readStream()
+    .format("kafka")
+    .option("kafka.bootstrap.servers", "localhost:9092")
+    .option("subscribe", "traffic-sensor-data")
+    .load();
+
+6. Neo4j Entegrasyonu
+Şehir yolları doğal bir graph yapısıdır.
+- Kavşak = Node
+- Yol = Edge
+- Trafik Yoğunluğu = Edge Weight
+
+Neo4j sayesinde:
+- En kısa yol
+- En hızlı rota
+- Trafik yoğunluğundan kaçınma
+
+hesaplamaları hızlı yapılır.
+
+7. Veri Akış Yönetimi
+GPS Verisi Geldi
+↓
+Kafka Topic
+↓
+Spark İşledi
+↓
+ML Tahmini Yapıldı
+↓
+Neo4j Güncellendi
+↓
+Mobil Uygulamaya Bildirim
+
+8. Performans Optimizasyonları
+- Partitioning
+- Paralelleştirme
+- Micro-Batch Optimizasyonu
+- Checkpoint Mekanizması
+- Cache Kullanımı
+- Backpressure Yönetimi
+- Veri Sıkıştırma
+
+9. Hata Toleransı
+Kafka replication factor önerisi: 3
+
+Avantajları:
+- Veri kaybını önler
+- Broker çökmesine karşı dayanıklıdır
+
+10. Ölçeklenebilirlik
+Sistem yatay ölçeklenebilir tasarlanmıştır.
+Yeni:
+- Kafka broker
+- Spark worker
+- ML node
+
+eklenebilir.
+
+11. Güvenlik
+Kafka Güvenliği:
+- SSL/TLS
+- SASL Authentication
+
+API Güvenliği:
+- JWT Authentication
+- Rate limiting
+
+12. Beklenen Çıktılar
+- Gerçek zamanlı trafik analizi
+- Trafik yoğunluğu tahmini
+- Dinamik rota optimizasyonu
+- Toplu taşıma optimizasyonu
+- Mobil kullanıcı bildirimleri
+- Ölçeklenebilir yüksek performanslı sistem
+
+13. Kullanılacak Teknolojiler
+- Java
+- Apache Kafka
+- Apache Spark
+- Spark MLlib
+- Neo4j
+- REST API
+- Docker
+- Kubernetes
+
