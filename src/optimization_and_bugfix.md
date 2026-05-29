@@ -1,6 +1,6 @@
 ## Akıllı Ulaşım Sistemi - Proje Geliştirme Akışı
 
-### Hafta 1: Proje Başlangıcı, Analiz ve Kurulum Süreçleri
+### Hafta 1: Proje Başlangıcı, Analiz ve Kurulum Süreçleri 
 
 **1. Proje Analizi ve Kapsam Tanımlama**
 *(Sorumlu: Şule Nur Bayğut)*
