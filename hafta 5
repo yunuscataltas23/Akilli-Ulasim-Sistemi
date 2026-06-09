@@ -1,0 +1,305 @@
+sorumlu  : Faik Dursun
+
+
+Aşağıda, Akıllı Ulaşım Sistemi projesinde kritik olabilecek algoritmaları; zaman ve mekan karmaşıklıklarıyla birlikte, pratik iyileştirme önerileriyle analiz ettim. Teknoloji yığınına göre düşünürsek burada en kritik katmanlar genelde şunlardır:
+
+• trafik yoğunluğu tahmini
+• rota optimizasyonu
+• sefer planlama / yeniden çizelgeleme
+• akış işleme ve veri birleştirme
+• graf analizi ve ağ sorguları
+
+Trafik yoğunluğu tahmini
+
+Bu katmanda geçmiş trafik verileri, sensör verileri, GPS akışları, hava durumu ve saat bilgisi gibi girdilerle tahmin yapılır.
+
+A. Basit özellik çıkarımı ve pencereleme
+Örneğin son $$k$$ zaman dilimindeki ortalama hız, araç sayısı, yoğunluk gibi öznitelikler çıkarılıyorsa:
+
+• Zaman karmaşıklığı:  
+  - Ham hesaplama: O(nk)  
+  - Eğer kayan pencere / prefix sum kullanılırsa: O(n)
+• Mekan karmaşıklığı:  
+  - Tüm pencere verisi tutulursa: O(n)  
+  - Sadece aktif pencere tutulursa: O(k)
+
+Burada:
+• $$n$$ = toplam veri noktası sayısı
+• $$k$$ = pencere boyutu
+
+B. Lineer model / lojistik regresyon ile tahmin
+Eğer özellik sayısı $$f$$ ise:
+
+• Eğitim zamanı: genelde O(nfI)
+• Tahmin zamanı: tek örnek için O(f), tüm veri için O(nf)
+• Mekan karmaşıklığı: O(f) model için, veriyle birlikte O(nf)
+
+Burada $$I$$ iterasyon sayısıdır.
+
+C. Ağaç tabanlı modeller
+Random Forest / Gradient Boosting benzeri modeller düşünülürse:
+
+• Eğitim zamanı: yaklaşık O(tnf log n)
+• Tahmin zamanı: yaklaşık O(td)
+• Mekan karmaşıklığı: O(t \ nodeCount)
+
+Burada:
+• $$t$$ = ağaç sayısı
+• $$d$$ = ağaç derinliği
+
+İyileştirme önerileri
+• Kayan pencere hesapları kullanarak O(nk) maliyeti O(n) seviyesine düşürün.
+• Tüm ham veriyi tekrar tekrar taramak yerine ön-toplamlar, rolling aggregates ve Spark window operations kullanın.
+• Gerçek zamanlı sistemde ağır modeller yerine:
+  - online learning,
+  - incremental feature update,
+  - mini-batch yaklaşımı tercih edin.
+• Özellik sayısı çok büyürse gereksiz kolonları atarak $$f$$ azaltılmalı; bu doğrudan hem eğitim hem tahmin maliyetini düşürür.
+
+En kısa yol ve rota optimizasyonu
+
+Toplu taşıma araçlarının rotalarını optimize etmek için yol ağı bir graf olarak modellenir:
+
+• düğüm sayısı: $$V$$
+• kenar sayısı: $$E$$
+
+A. Dijkstra algoritması
+Pozitif ağırlıklı graf için klasik seçimdir.
+
+• Zaman karmaşıklığı:
+  - Basit uygulama: O(V^2)
+  - Priority Queue / Heap ile: O((V + E) log V)
+• Mekan karmaşıklığı: O(V + E)
+
+Şehir içi ulaşım ağlarında genelde sparse graph olur; yani $$E$$ çoğunlukla $$V^2$$'den çok küçüktür. Bu yüzden heap tabanlı sürüm daha uygundur.
+
+B. A algoritması
+Eğer hedef biliniyorsa ve coğrafi sezgisel fonksiyon kullanılabiliyorsa:
+
+• En kötü durum zaman karmaşıklığı: O((V + E) log V)  
+• Pratikte: Dijkstra'dan daha hızlı çalışabilir
+• Mekan karmaşıklığı: O(V) ila O(V + E)
+
+A'ın avantajı, doğru heuristic ile gereksiz düğüm genişletmelerini azaltmasıdır.
+
+C. Tüm çiftler arası en kısa yol
+Eğer sistem sürekli her durak çifti için maliyet sorguluyorsa:
+
+• Floyd-Warshall:  
+  - Zaman: O(V^3)
+  - Mekan: O(V^2)
+
+Bu yaklaşım büyük şehir ağlarında pahalı olabilir.
+
+İyileştirme önerileri
+• Tekil rota sorguları için Dijkstra + heap ya da A kullanın.
+• Sık kullanılan güzergahlar için önbellekleme yapın; böylece tekrar eden sorgular O(1) erişim maliyetine yaklaşır.
+• Gerçek zamanlı trafik değişimi tüm grafı yeniden hesaplatıyorsa:
+  - yalnızca etkilenen kenarları güncelleyen incremental shortest path yaklaşımları kullanın.
+• Coğrafi veri varsa A tercih ederek arama alanını daraltın.
+• Neo4j üzerinde yoğun sorgularda, her istek için tam graf taraması yerine:
+  - uygun index,
+  - relationship filtering,
+  - ön-hesaplanmış path summary
+  kullanın.
+
+Toplu taşıma araçları için sefer ve rota yeniden planlama
+
+Burada problem çoğu zaman bir tür Vehicle Routing Problem (VRP), schedule optimization veya assignment problem'e dönüşür.
+
+A. Basit atama yaklaşımı
+$$m$$ araç ve $$r$$ rota/iş varsa:
+
+• Tüm araç-rota kombinasyonlarını değerlendirmek: O(mr)
+• Eğer her atama için ek maliyet hesabı yapılıyorsa: O(mrc)
+
+Burada $$c$$, maliyet fonksiyonunun hesap maliyetidir.
+
+B. Tam optimizasyon
+VRP, Capacitated VRP, time-window scheduling gibi problemler çoğunlukla kombinatoryaldir.
+
+• Brute force: O(r!) veya daha kötü
+• Bellek: çözüm ağacına göre çok hızlı artabilir
+
+Bu nedenle tam çözüm büyük veri boyutlarında gerçek zamanlı sistemler için uygun değildir.
+
+C. Sezgisel / meta-sezgisel yöntemler
+Genetik algoritma, tabu search, simulated annealing gibi yöntemler kullanılır.
+
+• Yaklaşık zaman karmaşıklığı: çoğu durumda O(I \ P \ C)
+• Mekan karmaşıklığı: O(P \ S)
+
+Burada:
+• $$I$$ = iterasyon sayısı
+• $$P$$ = popülasyon / aday çözüm sayısı
+• $$C$$ = aday çözüm değerlendirme maliyeti
+• $$S$$ = bir çözümün temsil boyutu
+
+İyileştirme önerileri
+• Problemi tek parça çözmek yerine bölgesel kümelere ayırın; örneğin ilçelere göre parçalayın. Böylece çözüm uzayı küçülür.
+• Gerçek zamanlı yeniden planlamada global optimum yerine yakın-optimal heuristics tercih edin.
+• Her olayda tüm sistemi yeniden planlamak yerine yalnızca:
+  - etkilenen hatlar,
+  - geciken araçlar,
+  - kritik aktarma noktaları
+  için lokal yeniden optimizasyon yapın.
+• Maliyet fonksiyonu pahalıysa, önceden hesaplanmış mesafe/zaman matrisi kullanın.
+
+Kafka + Spark ile veri akışı işleme
+
+Sistem sürekli veri aldığı için akış işleme tarafı performans açısından kritik olur.
+
+A. Akıştaki olayları tüketme ve dönüştürme
+$$n$$ adet olay işleniyorsa:
+
+• Zaman karmaşıklığı: çoğu map/filter dönüşümünde O(n)
+• Mekan karmaşıklığı: streaming buffer ve state store'a bağlı olarak O(n) değil, daha çok O(s)
+
+Burada $$s$$ = tutulan durumun boyutu.
+
+B. Join işlemleri
+Örneğin araç konum verisini rota verisi veya trafik verisi ile birleştirmek:
+
+• Hash join ortalama: O(n + m)
+• Kötü durumda: O(nm)
+• Mekan karmaşıklığı: O(n + m)
+
+C. Stateful streaming
+Araç başına son durum tutuluyorsa ve $$u$$ farklı araç varsa:
+
+• Güncelleme zamanı: genelde O(1) amortized
+• Toplam zaman: O(n)
+• Mekan karmaşıklığı: O(u)
+
+İyileştirme önerileri
+• Join'lerde küçük veri setlerini broadcast ederek shuffle maliyetini azaltın.
+• Anahtar tasarımını iyileştirip data skew önleyin; aksi halde teorik karmaşıklık aynı görünse de pratikte bazı partition'lar darboğaz olur.
+• Uzun süre saklanan state verilerini TTL ile temizleyin; böylece mekan karmaşıklığı kontrol altında kalır.
+• Ham olayları tekrar işlemek yerine ön-aggregate topic yapısı kurarak downstream maliyeti düşürün.
+• Spark tarafında gereksiz wide transformation'ları azaltın.
+
+Neo4j üzerinde ağ ve ilişki sorguları
+
+Ulaşım sistemi düğümler, duraklar, istasyonlar, hatlar ve bağlantılar olarak modelleniyorsa Neo4j kritik hale gelir.
+
+A. Düğüm komşuluk taraması
+Bir düğümün komşularını bulma:
+
+• Zaman karmaşıklığı: O(deg(v))
+• Mekan karmaşıklığı: O(deg(v)) veya sonuç boyutu kadar
+
+Burada $$deg(v)$$ düğüm derecesidir.
+
+B. Graf traversalı
+BFS/DFS ile erişilebilirlik veya bağlantı kontrolü:
+
+• Zaman karmaşıklığı: O(V + E)
+• Mekan karmaşıklığı:  
+  - BFS: O(V)
+  - DFS: O(V)
+
+C. Desen eşleme sorguları
+Cypher sorgularında çok adımlı pattern matching yapılırsa:
+
+• Basit indexed lookup: yaklaşık O(log V) veya pratikte çok düşük maliyet
+• Kötü tasarlanmış pattern query: O(V + E) hatta kartesyen büyüme nedeniyle çok daha pahalı olabilir
+
+İyileştirme önerileri
+• Sık sorgulanan alanlara index koyun.
+• Çok geniş pattern match sorgularında filtreleri sorgunun başına çekin.
+• Değişmeyen alt graf sonuçlarını materialize etmek faydalı olabilir.
+• “Tüm ağı tara, sonra filtrele” yaklaşımı yerine “önce filtrele, sonra traverse et” kullanın.
+
+Anomali tespiti ve olay algılama
+
+Kazalar, ani yavaşlamalar, hat dışı yoğunluk artışları gibi olayların tespiti için kullanılır.
+
+A. Eşik tabanlı yöntem
+Her veri noktası için sabit kurallar:
+
+• Zaman karmaşıklığı: O(n)
+• Mekan karmaşıklığı: O(1) veya küçük state ile O(u)
+
+B. KNN / uzaklık tabanlı anomali tespiti
+$$n$$ nokta için tüm çift karşılaştırma:
+
+• Zaman karmaşıklığı: O(n^2)
+• Mekan karmaşıklığı: O(n) veya uzaklık matrisi tutulursa O(n^2)
+
+C. Ağaç / streaming anomaly yöntemleri
+Isolation Forest benzeri yaklaşımlar:
+
+• Eğitim: yaklaşık O(t \ \psi log \psi)
+• Tahmin: O(t log \psi)
+• Mekan: O(t \ \psi)
+
+Burada $$\psi$$ örnekleme boyutudur.
+
+İyileştirme önerileri
+• Gerçek zamanlı sistemlerde önce ucuz eşik tabanlı filtre, sonra pahalı model kullanın.
+• Tüm veri üzerinde karşılaştırma yerine:
+  - zaman penceresi,
+  - bölgesel segment,
+  - araç bazlı alt küme
+  kullanarak $$n$$ küçültün.
+• KNN benzeri yöntemlerde approximate nearest neighbor tercih edilebilir.
+
+Kritik darboğazların özet karmaşıklık tablosu
+
+| Bileşen | Temel algoritma / işlem | Zaman karmaşıklığı | Mekan karmaşıklığı | Not |
+|---|---|---:|---:|---|
+| Trafik özellik çıkarımı | Kayan pencere yoksa | O(nk) | O(n) | Büyük veri için pahalı |
+| Trafik özellik çıkarımı | Rolling window ile | O(n) | O(k) | Daha uygun |
+| Tahmin modeli | Lineer model | O(nfI) | O(nf) | Eğitim maliyeti kontrollü |
+| En kısa yol | Dijkstra + heap | O((V+E) log V) | O(V+E) | Şehir grafı için uygun |
+| Tüm çiftler yol | Floyd-Warshall | O(V^3) | O(V^2) | Büyük ağlarda pahalı |
+| Akış işleme | Map/filter | O(n) | O(s) | İyi ölçeklenir |
+| Streaming join | Hash join | O(n+m) | O(n+m) | Skew kritik |
+| Çizelgeleme | Brute force | O(r!) | Çok yüksek | Gerçek zamanlıya uygun değil |
+| Graf tarama | BFS/DFS | O(V+E) | O(V) | Erişilebilirlik için iyi |
+| KNN anomali tespiti | Tam karşılaştırma | O(n^2) | O(n) - O(n^2) | Büyük akışta pahalı |
+
+En önemli iyileştirme stratejileri
+
+Bu proje için en etkili optimizasyonlar şunlar olur:
+
+Tam yeniden hesaplama yerine artımlı güncelleme
+   - Trafik değiştiğinde tüm rota ve çizelgeyi baştan hesaplamak pahalıdır.
+   - Sadece etkilenen bölgeyi güncellemek maliyeti ciddi düşürür.
+
+Graf algoritmalarında önbellekleme ve heuristic kullanım
+   - Tekrarlanan güzergah sorgularında önbellek
+   - Hedef odaklı sorgularda A*
+
+Akış işleme state boyutunu sınırlama
+   - TTL
+   - compacted topics
+   - aggregate-first tasarım
+
+Optimizasyon problemini parçalama
+   - Şehir geneli tek problem yerine bölgesel alt problemlere ayırma
+   - Böylece $$n, r, V, E$$ boyutları küçülür
+
+Yaklaşık ama hızlı algoritmalar kullanma
+   - Özellikle gerçek zamanlı kararlar için exact optimum yerine near-optimal çözüm daha değerlidir
+
+Veri modeli optimizasyonu
+   - Neo4j index'leri
+   - Spark partition stratejisi
+   - Kafka topic key tasarımı
+
+Sonuç
+
+Bu projede en kritik karmaşıklık riskleri genelde üç yerde ortaya çıkar:
+
+• rota optimizasyonunda graf araması ve tekrar hesaplama maliyeti,
+• sefer planlamasında kombinatoryal patlama,
+• akış verisinde join ve state yönetimi.
+
+Genel olarak iyi ölçeklenen bileşenler O(n) veya O((V+E) log V) düzeyinde kalanlardır. Riskli bileşenler ise O(n^2), O(V^3) ve O(r!) seviyesine çıkanlardır. Bu nedenle sistem mimarisinde hedef şu olmalı:
+
+• mümkün olduğunca lineer veya lineere yakın maliyet,
+• pahalı hesaplamaları lokal, artımlı ve önbellekli hale getirmek,
+• gerçek zamanlı kararlar için heuristic / approximate yöntemleri tercih etmek.
+
+İstersen bunu bir sonraki adımda rapor formatında, tez diliyle, ya da sunum slaytı şeklinde düzenlenmiş halde de verebilirim.
