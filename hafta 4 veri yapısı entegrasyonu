@@ -1,0 +1,476 @@
+sorumlu faik dursun
+
+Bu projede veri yapıları büyük ihtimalle şu tür problemlere yol açar:
+
+rota verileri ilişkisel ya da dağınık JSON yapılarında tutuluyordur
+araç konumları append-only şekilde büyüyordur
+trafik verisi sorgu sırasında birleştiriliyordur
+graf komşuluk bilgileri her sorguda yeniden çıkarılıyordur
+ML özellikleri ham olaylardan tekrar tekrar hesaplanıyordur
+Bunları düzeltmek için veri yapılarını erişim desenine göre yeniden düzenlemek gerekir. Yani:
+
+anlık sorgu için ayrı yapı,
+analitik işlem için ayrı yapı,
+graf traversalı için ayrı yapı,
+ML özellik üretimi için ayrı yapı
+kullanılmalı.
+
+2. Bileşen bazlı veri yapısı uyumlulaştırma
+A. Yol ağı ve durak bağlantıları
+Yeni rota algoritmalarıyla uyumlu olmak için yol ağını klasik tablo mantığından çıkarıp adjacency list + weight map yapısına taşımak gerekir.
+
+Önerilen yapı
+java
+
+
+class Edge {
+    int targetNodeId;
+    double distance;
+    double travelTime;
+    double congestionScore;
+}
+Map<Integer, List<Edge>> graph;
+Neden uygun?
+Dijkstra / A* / BFS gibi algoritmalar için komşulara erişim hızlı olur.
+Komşu tarama maliyeti O(deg(v)) olur.
+Tüm graf üzerinden tarama yerine ilgili düğümün kenarları okunur.
+Sparse graph yapılarında bellek kullanımı O(V + E) düzeyinde kalır.
+İyileştirme
+Eğer her kenar için sık sık ağırlık güncellemesi yapılıyorsa, List<Edge> yerine bazı yerlerde:
+
+java
+
+
+Map<Integer, Map<Integer, Edge>> graph;
+kullanılabilir.
+
+Bu durumda:
+
+belirli bir komşu kenarına erişim ortalama O(1)
+ek bellek maliyeti artar
+Tercih kuralı
+Traversal ağırlıklı ise List<Edge>
+Update / lookup ağırlıklı ise Map<Integer, Edge>
+B. Durak, hat ve araç eşlemeleri
+Hatlar ve araçlar için lineer arama yapan listeler varsa bunlar darboğaz üretir.
+
+Sorunlu yapı
+java
+
+
+List<Vehicle> vehicles;
+List<Route> routes;
+Bir araç ya da hat bulmak için:
+
+zaman karmaşıklığı: O(n)
+Önerilen yapı
+java
+
+
+Map<String, Vehicle> vehicleById;
+Map<String, Route> routeById;
+Map<String, Stop> stopById;
+Map<String, List<String>> routesByStopId;
+Kazanım
+ID ile erişim: ortalama O(1)
+Durağa göre geçen hatları bulma: ortalama O(1) map erişimi + sonuç listesi kadar
+Ek öneri
+Sık kullanılan veriler için immutable snapshot tutun:
+
+java
+
+
+class TransportIndex {
+    Map<String, Vehicle> vehicleById;
+    Map<String, Route> routeById;
+    Map<String, Stop> stopById;
+    Map<String, List<String>> routesByStopId;
+}
+Bu sayede:
+
+okuma işlemleri lock-free hale yaklaşır
+concurrent erişimde maliyet düşer
+yeniden yükleme atomik yapılabilir
+C. Gerçek zamanlı araç konum verisi
+Araçların tüm geçmiş konumunu tek bir listede tutmak hem erişim hem bellek açısından kötü bir tercihtir.
+
+Sorunlu yapı
+java
+
+
+List<LocationEvent> allEvents;
+son konumu bulmak: O(n)
+araç bazlı filtreleme: O(n)
+Önerilen yapı
+İki katmanlı yapı kullanın:
+
+java
+
+
+Map<String, LocationEvent> latestLocationByVehicle;
+Map<String, Deque<LocationEvent>> recentLocationsByVehicle;
+Amaç
+son konum erişimi: O(1)
+son 
+𝑘
+k kayıt için erişim: O(k)
+tüm geçmişi RAM'de tutmak yerine sadece aktif pencereyi saklamak
+Kazanım
+mekan karmaşıklığı tüm geçmiş yerine O(u * k) olur
+burada 
+𝑢
+u araç sayısı, 
+𝑘
+k araç başına tutulacak son kayıt sayısıdır
+Bu yapı yeni trafik tahmin algoritmalarıyla da uyumludur çünkü rolling feature üretimi kolaylaşır.
+
+D. Trafik yoğunluğu ve zaman serisi verisi
+Tahmin algoritmaları için ham olaylardan sürekli yeniden hesaplama yapmak pahalıdır. Bunun yerine windowed aggregate store gerekir.
+
+Önerilen yapı
+java
+
+
+class TrafficWindowStat {
+    long windowStart;
+    int vehicleCount;
+    double avgSpeed;
+    double occupancy;
+    double congestionIndex;
+}
+Map<String, NavigableMap<Long, TrafficWindowStat>> statsBySegment;
+Burada anahtar:
+
+segmentId
+zaman damgasına göre sıralı pencere verisi
+Neden iyi?
+belirli segmentin son 
+𝑘
+k penceresine erişim hızlı olur
+zaman bazlı sorgular NavigableMap ile verimli yapılır
+son pencere güncellemesi logaritmik ya da amortized düşük maliyetle yapılır
+Karmaşıklık
+pencere ekleme/güncelleme: O(log w)
+son pencereyi alma: O(log w) veya tail pointer ile O(1)
+son 
+𝑘
+k pencere tarama: O(k)
+Burada 
+𝑤
+w segment başına tutulan pencere sayısıdır.
+
+Daha hızlı alternatif
+Eğer sabit boyutlu pencere kullanıyorsanız:
+
+java
+
+
+Map<String, CircularBuffer<TrafficWindowStat>> rollingStats;
+ekleme: O(1)
+son 
+𝑘
+k kayıt erişimi: O(k)
+mekan: O(s * k)
+Bu, gerçek zamanlı ML için daha uygundur.
+
+E. Öncelik kuyruğu kullanan rota algoritmaları
+Yeni rota algoritmaları muhtemelen Dijkstra ya da A* içeriyor. Bunun için veri yapısının doğrudan destek vermesi gerekir.
+
+Önerilen yapı
+java
+
+
+PriorityQueue<NodeState> pq;
+boolean[] visited;
+double[] distance;
+int[] previous;
+Karmaşıklık etkisi
+öncelik kuyruğuna ekleme: O(log V)
+minimum eleman çekme: O(log V)
+toplam: O((V + E) log V)
+Dikkat
+Java PriorityQueue decrease-key desteklemez. Bu nedenle iki yaklaşım vardır:
+
+Aynı düğümü tekrar kuyruğa eklemek
+Fibonacci heap benzeri karmaşık yapılar kullanmak
+Pratikte 1. yaklaşım daha uygundur. Çünkü:
+
+implementasyonu basit
+gerçek sistemlerde bakım maliyeti düşüktür
+F. Neo4j ile uyumlu grafik modeli
+Neo4j tarafında algoritmaların hızlı çalışması için düğüm ve ilişki modeli sorgu desenine göre sadeleştirilmeli.
+
+Önerilen düğüm tipi
+Stop
+Station
+Vehicle
+Route
+Segment
+Önerilen ilişki tipi
+(:Stop)-[:CONNECTED_TO]->(:Stop)
+(:Route)-[:SERVES]->(:Stop)
+(:Vehicle)-[:ASSIGNED_TO]->(:Route)
+(:Segment)-[:AFFECTS]->(:Route)
+İndekslenmesi gereken alanlar
+Stop.id
+Route.id
+Vehicle.id
+Segment.id
+zaman bazlı sorgu varsa uygun timestamp alanları
+Veri erişim optimizasyonu
+Eğer önce durak bulunup sonra komşular geziliyorsa:
+
+ilk lookup: yaklaşık O(log n) ya da indeks sayesinde çok düşük maliyet
+traversal: sonuç kadar
+Yapılmaması gerekenler
+çok genel MATCH (n)-[r]->(m) sorguları
+filtresiz çok sıçramalı traversal
+sorgu anında relationship ağırlığını hesaplamak
+Yapılması gerekenler
+ilişki üstünde hazır alanlar tutun:
+travelTime
+distance
+riskScore
+congestionWeight
+Bu sayede algoritmalar sorgu anında ek hesap yapmaz.
+
+3. Spark tarafında veri erişim ve işlem optimizasyonu
+Spark için veri yapısı optimizasyonu, sadece Java nesneleri değil, partition düzeni, kolon tipi, shuffle azaltma ile ilgilidir.
+
+A. Olay şemalarını normalize edin
+Sorun
+Farklı topic'lerden gelen olaylar farklı JSON yapılarındaysa parse maliyeti artar.
+
+Öneri
+Sabit şema kullanın:
+
+java
+
+
+vehicleId
+routeId
+segmentId
+timestamp
+lat
+lon
+speed
+occupancy
+eventType
+Kazanım
+parse maliyeti düşer
+schema inference ortadan kalkar
+Catalyst optimizasyonu daha verimli çalışır
+Karmaşıklık etkisi
+Asimptotik olarak çoğu işlem yine O(n) kalır, ama sabit çarpan ciddi düşer.
+
+B. Partition key tasarımı
+Öneri
+Kafka ve Spark tarafında anahtarları erişim modeline göre hizalayın:
+
+araç bazlı hesaplar için vehicleId
+segment bazlı trafik için segmentId
+rota bazlı planlama için routeId
+Neden önemli?
+Yanlış partitioning yüzünden:
+
+teorik işlem O(n) görünür
+pratikte bazı executor'lar aşırı yük alır
+toplam süre ciddi artar
+İyileştirme
+En sık yapılan aggregation'a göre birincil anahtar seçin.
+
+C. Stateful streaming için compact state
+Araç başına son durum veya segment başına özet bilgi saklanıyorsa state olabildiğince küçük tutulmalı.
+
+Önerilen durum modeli
+java
+
+
+class VehicleState {
+    long timestamp;
+    double lat;
+    double lon;
+    double speed;
+    String segmentId;
+}
+veya
+
+java
+
+
+class SegmentState {
+    long windowStart;
+    int vehicleCount;
+    double avgSpeed;
+    double congestionScore;
+}
+Neden?
+state güncelleme maliyeti düşer
+checkpoint boyutu küçülür
+recovery süresi kısalır
+Karmaşıklık
+güncelleme: ortalama O(1)
+state alanı: O(u) veya O(s)
+4. Kafka tarafında veri yapısı ve topic stratejisi
+Kafka'da veri erişimi çoğu zaman topic tasarımıyla hızlanır.
+
+Önerilen topic ayrımı
+vehicle-location-raw
+vehicle-location-latest
+traffic-segment-windowed
+route-optimization-input
+route-optimization-output
+incident-events
+Neden?
+Ham veri ile işlenmiş veriyi ayırmak gerekir. Böylece downstream servisler her seferinde ham veriyi taramaz.
+
+Veri yapısı farkı
+ham topic: append-only event
+latest topic: key-compacted state
+aggregate topic: window bazlı özet
+Karmaşıklık kazancı
+Ham topic'i taramak yerine latest topic'ten okuyunca:
+
+son durumu bulma maliyeti etkin olarak O(1) erişime yaklaşır
+tüketici tarafında gereksiz geçmiş tarama ortadan kalkar
+5. ML pipeline ile veri yapısı uyumu
+ML modelinin hızlı beslenebilmesi için özellikler yeniden hesaplanmamalı; hazır feature store mantığına geçilmeli.
+
+Önerilen yapı
+java
+
+
+class FeatureVector {
+    String segmentId;
+    long timestamp;
+    double avgSpeed5m;
+    double avgSpeed15m;
+    int vehicleCount5m;
+    double occupancyRate;
+    double weatherImpact;
+    double congestionLabel;
+}
+Bunu saklamak için:
+
+java
+
+
+Map<String, Deque<FeatureVector>> featureHistoryBySegment;
+ve offline tarafta kolonlu depolama.
+
+Neden?
+tahmin sırasında ham olaylardan feature üretme maliyeti düşer
+online tahmin: özellik erişimi O(1) ila O(k)
+eğitim veri seti üretimi daha hızlı olur
+İyileştirme
+online için son pencere özellikleri RAM'de
+offline eğitim için Parquet/columnar storage
+aynı feature tanımı hem training hem serving'de kullanılmalı
+Bu, training-serving skew riskini de azaltır.
+
+6. Veri yapısı dönüşüm planı
+Bunu doğrudan projeye uygulamak için aşağıdaki geçiş planı uygundur.
+
+Aşama 1: Erişim desenlerini çıkarın
+Her veri kümesi için şu soruları cevaplayın:
+
+Veri kümesi	En sık erişim tipi	Mevcut yapı	Hedef yapı
+Araç konumu	araç ID ile son kayıt	List / ham event	Map + compacted state
+Yol ağı	düğüm komşuları	tablo / düz kayıt	adjacency list
+Trafik istatistiği	segment + zaman penceresi	ham event	circular buffer / navigable map
+Hat bilgisi	routeId ile lookup	list	hash map
+ML özellikleri	segment + pencere	anlık hesaplama	feature store
+Aşama 2: Çift katmanlı veri modeli kurun
+Her kritik veri için iki temsil kullanın:
+
+Operational representation
+hızlı sorgu için
+hash map, heap, deque, adjacency list
+Analytical representation
+batch eğitim ve raporlama için
+Parquet, graph projections, aggregate tables
+Bu ayrım çok önemlidir. Tek veri yapısıyla hem streaming hem analitik hem de rota optimizasyonu çözülmeye çalışılırsa performans düşer.
+
+Aşama 3: Sıcak veriyi ayırın
+Sıcak veri
+son araç konumu
+son 5/15/30 dakikalık trafik özetleri
+aktif rota atamaları
+güncel kenar ağırlıkları
+Soğuk veri
+geçmiş konum geçmişi
+eski sefer kayıtları
+model eğitim arşivi
+Sıcak veri için düşük gecikmeli yapılar:
+
+HashMap
+Deque
+PriorityQueue
+CircularBuffer
+Soğuk veri için:
+
+sıkıştırılmış kolonlu depolama
+batch erişim
+7. Somut performans etkileri
+Bu dönüşümün beklenen etkisi kabaca şöyledir:
+
+İşlem	Eski yaklaşım	Yeni yaklaşım	Etki
+Araç son konumu bulma	O(n)	O(1)	Çok büyük hızlanma
+Durak/hat lookup	O(n)	O(1)	Düşük gecikme
+Komşu yol erişimi	O(E) veya filtreleme	O(deg(v))	Graf işlemleri hızlanır
+Son k trafik penceresi	O(n) tarama	O(k)	ML ve tahmin hızlanır
+Tekrarlı rota sorgusu	baştan hesaplama	cache + graph index	CPU düşer
+Streaming state erişimi	geniş state	compact state	bellek ve checkpoint azalır
+8. Doğrudan uygulanabilecek teknik öneriler
+Java tarafında ArrayList ile lineer arama yapılan yerleri HashMap ile değiştirin.
+Graf için tablo tabanlı erişim yerine adjacency list kullanın.
+Araç geçmişi için sınırsız liste yerine Deque veya CircularBuffer kullanın.
+Trafik özetleri için ham event taramasını bırakıp window aggregate store kurun.
+Kafka'da ham, latest ve aggregate topic'leri ayırın.
+Spark'ta JSON serbest format yerine sabit schema kullanın.
+Neo4j'de ilişki üstünde hazır ağırlık alanları tutun.
+ML için online feature cache + offline feature store ayrımı yapın.
+Sık sorgulanan sonuçları cache'leyin; özellikle rota ve segment bazlı skorları.
+9. Örnek hedef mimari
+Kısa özetle hedef yapı şu olmalı:
+
+Kafka
+ham olay akışı
+compacted latest state
+aggregate topic
+Spark
+window aggregation
+feature generation
+stream-state update
+Java servis katmanı
+HashMap tabanlı indeksler
+Deque/CircularBuffer ile kısa geçmiş
+PriorityQueue ile rota hesaplama
+Adjacency List ile graf belleği
+Neo4j
+kalıcı ağ modeli
+indeksli düğüm erişimi
+ön-hesaplı ilişki ağırlıkları
+ML katmanı
+hazır feature vector yapısı
+online inference cache
+offline training store
+Sonuç
+Bu projede veri yapılarını yeni algoritmalarla uyumlu hale getirmenin temel prensibi şu:
+
+Liste tabanlı genel amaçlı saklama yerine, erişim desenine özel indeksli veri yapıları kullanın.
+
+En kritik dönüşümler:
+
+List -> HashMap lookup yapıları
+düz yol verisi -> Adjacency List
+tüm geçmiş -> Deque / CircularBuffer
+ham olay -> Window Aggregate
+sorgu anında feature üretimi -> Feature Store
+tek katmanlı veri modeli -> Operational + Analytical ayrımı
+Bu dönüşümle birlikte:
+
+erişim süresi çoğu kritik noktada O(n)'den O(1) veya O(log n) seviyesine iner
+graf algoritmaları O(V^2) hissiyatından O((V+E) log V) pratik performansına yaklaşır
+streaming sistemde bellek kullanımı ve gecikme önemli ölçüde düşer
+Aşağıya isterseniz bunu bir teknik tasarım dokümanı, mimari diyagram, ya da Java sınıf taslağı olarak da dönüştürebilirim.
